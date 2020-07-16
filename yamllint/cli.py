@@ -17,15 +17,33 @@
 from __future__ import print_function
 
 import argparse
+import contextlib
 import io
 import os
 import platform
 import sys
 
+import chardet
+
 from yamllint import APP_DESCRIPTION, APP_NAME, APP_VERSION
 from yamllint import linter
 from yamllint.config import YamlLintConfig, YamlLintConfigError
 from yamllint.linter import PROBLEM_LEVELS
+
+
+@contextlib.contextmanager
+def yamlopen(fp, **iowrapper_kwargs):
+    with io.open(fp, mode='rb') as raw_file:
+        if iowrapper_kwargs.get('encoding'):
+            with io.TextIOWrapper(raw_file, **iowrapper_kwargs) as decoded:
+                yield decoded
+        else:
+            raw_data = raw_file.read()
+            encoding = chardet.detect(raw_data).get('encoding') or 'utf-8'
+            iowrapper_kwargs['encoding'] = encoding
+            buff = io.BytesIO(raw_data)
+            with io.TextIOWrapper(buff, **iowrapper_kwargs) as decoded:
+                yield decoded
 
 
 def find_files_recursively(items, conf):
@@ -180,7 +198,7 @@ def run(argv=None):
     for file in find_files_recursively(args.files, conf):
         filepath = file[2:] if file.startswith('./') else file
         try:
-            with io.open(file, newline='') as f:
+            with yamlopen(file, newline='') as f:
                 problems = linter.run(f, conf, filepath)
         except EnvironmentError as e:
             print(e, file=sys.stderr)
