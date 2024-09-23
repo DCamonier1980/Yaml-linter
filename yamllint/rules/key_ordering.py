@@ -19,6 +19,7 @@ order uses the Unicode code point number as a default. As a result, the
 ordering is case-sensitive and not accent-friendly (see examples below).
 This can be changed by setting the global ``locale`` option.  This allows one
 to sort case and accents properly.
+It also allows one to ignore certain keys by setting the ``ignored`` option.
 
 .. rubric:: Examples
 
@@ -78,6 +79,15 @@ to sort case and accents properly.
       haïr: true
       hais: true
       haïssable: true
+
+#. With rule ``key-ordering: {ignored: ["name"]}``
+
+   the following code snippet would **PASS**:
+   ::
+
+    - name: John
+      age: 30
+      city: New York
 """
 
 from locale import strcoll
@@ -88,7 +98,8 @@ from yamllint.linter import LintProblem
 
 ID = 'key-ordering'
 TYPE = 'token'
-
+CONF = {'ignored': [str]}
+DEFAULT = {'ignored': []}
 MAP, SEQ = range(2)
 
 
@@ -117,10 +128,11 @@ def check(conf, token, prev, next, nextnext, context):
         # This check is done because KeyTokens can be found inside flow
         # sequences... strange, but allowed.
         if len(context['stack']) > 0 and context['stack'][-1].type == MAP:
-            if any(strcoll(next.value, key) < 0
-                   for key in context['stack'][-1].keys):
-                yield LintProblem(
-                    next.start_mark.line + 1, next.start_mark.column + 1,
-                    f'wrong ordering of key "{next.value}" in mapping')
-            else:
-                context['stack'][-1].keys.append(next.value)
+            if next.value not in conf['ignored']:
+                if any(strcoll(next.value, key) < 0
+                       for key in context['stack'][-1].keys):
+                    yield LintProblem(
+                        next.start_mark.line + 1, next.start_mark.column + 1,
+                        f'wrong ordering of key "{next.value}" in mapping')
+                else:
+                    context['stack'][-1].keys.append(next.value)
