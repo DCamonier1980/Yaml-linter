@@ -128,11 +128,11 @@ def check(conf, token, prev, next, nextnext, context):
         # This check is done because KeyTokens can be found inside flow
         # sequences... strange, but allowed.
         if len(context['stack']) > 0 and context['stack'][-1].type == MAP:
-            if next.value not in conf['ignored']:
-                if any(strcoll(next.value, key) < 0
-                       for key in context['stack'][-1].keys):
-                    yield LintProblem(
-                        next.start_mark.line + 1, next.start_mark.column + 1,
-                        f'wrong ordering of key "{next.value}" in mapping')
-                else:
-                    context['stack'][-1].keys.append(next.value)
+            if any(strcoll(next.value, key) < 0
+                    for key in context['stack'][-1].keys
+                    if key not in conf['ignored']):
+                yield LintProblem(
+                    next.start_mark.line + 1, next.start_mark.column + 1,
+                    f'wrong ordering of key "{next.value}" in mapping')
+            else:
+                context['stack'][-1].keys.append(next.value)
